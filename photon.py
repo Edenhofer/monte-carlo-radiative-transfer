@@ -19,6 +19,31 @@ def rand_mu(n=1, g=0.85):
     return ((r * ((1 + g**2 - 2 * g)**(-1 / 2) - (1 + g**2 + 2 * g)**(-1 / 2)) + (1 + g**2 + 2 * g)**(-1 / 2))**-2 - 1 - g**2) / (-2 * g)
 
 
+def rand_mu_reyleigh(n=1):
+    r = np.random.rand(n)
+    q = -8 * r + 4
+    D = 1 + np.power(q, 2)/4
+    u = np.power(-q/2 + np.sqrt(D), 1/3)
+    return u - 1/u
+
+
+def get_sca(p):
+    pos_box = tuple(np.floor((p.pos * box_size) % beta_atm.shape).astype(int))
+
+    tau = rand_tau(n=1)[0]
+    phi = rand_phi(n =1)[0]
+    if pos_box in clouds.keys():
+        mu = rand_mu(n=1)[0]
+    else:
+        #mu = rand_mu_reyleigh(n=1)[0]
+        mu = rand_mu(n=1)[0]
+
+    #print(pos_box, p.pos)
+
+    delta_s = tau / beta_atm[pos_box]
+
+    return delta_s, mu, phi
+
 class photon(object):
     def __init__(self, x=None, y=None, z=None, n_x=None, n_y=None, n_z=None, zenith_angle=None):
         x = 0. if x is None else x
@@ -39,34 +64,34 @@ class photon(object):
 
 n_photons = int(1e+4)
 low_photons = 100
-z_TOA = 1.
-beta_ext = 1e+0
+
+box_size = (1., 1., 1.)
+beta_atm = np.full((3, 3, 3), fill_value=1.)
+clouds = {(0, 0, 1): 1.}
+for el, key in clouds.items():
+    beta_atm[el] = key
 
 photon_counter = {"TOA": 0, "surface": 0}
 
 if n_photons <= low_photons:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_zlim(-0.1, z_TOA+0.1)
+    ax.set_zlim(-0.1, box_size[2]+0.1)
 
 for i in range(n_photons):
-    p = photon(0., 0., z_TOA, zenith_angle=np.pi / 6.)
+    p = photon(0., 0., box_size[2], zenith_angle=0.)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
-    while p.pos[2] <= z_TOA and p.pos[2] >= 0:
-        tau = rand_tau(n=1)[0]
-        delta_s = tau / beta_ext
-        # Propagate photon
+    while p.pos[2] <= box_size[2] and p.pos[2] >= 0:
+        # Propagate photon through a scattering atmopshere
+        delta_s, mu, phi = get_sca(p)  # Incorporate clouds
         p.pos += p.n * delta_s
 
         u = np.array([1., 1., -(p.n[0] + p.n[1]) / p.n[2]])
         u /= np.linalg.norm(u)
         v = np.cross(p.n, u)
-
-        # Scatter photon
-        mu = rand_mu(n=1)[0]
-        phi = rand_phi(n=1)[0]
+        # Adapt orientation after scattering
         p.n = mu * p.n + np.sin(np.arccos(mu)) * np.cos(phi) * u + np.sin(np.arccos(mu)) * np.sin(phi) * v
         p.n /= np.linalg.norm(p.n)
 
@@ -82,7 +107,7 @@ for i in range(n_photons):
     if n_photons <= low_photons:
         ax.plot(p_paths[0], p_paths[1], p_paths[2])
 
-    if p.pos[2] > z_TOA:
+    if p.pos[2] > box_size[2]:
         photon_counter["TOA"] += 1
     elif p.pos[2] < 0:
         photon_counter["surface"] += 1
