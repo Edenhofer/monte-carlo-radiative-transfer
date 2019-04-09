@@ -119,9 +119,17 @@ if n_photons <= low_photons:
 
 n_tot = photon_counter["surface"] + photon_counter["TOA"]
 T = photon_counter["surface"] / (photon_counter["surface"] + photon_counter["TOA"])
-T_std = np.sqrt((n_tot - photon_counter["surface"])/(n_tot * photon_counter["surface"]))
+try:
+    T_std = np.sqrt((n_tot - photon_counter["surface"])/(n_tot * photon_counter["surface"]))
+except ZeroDivisionError:
+    T_std = np.inf
+
 R = photon_counter["TOA"] / (photon_counter["surface"] + photon_counter["TOA"])
-R_std = np.sqrt((n_tot - photon_counter["TOA"])/(n_tot * photon_counter["TOA"]))
+try:
+    R_std = np.sqrt((n_tot - photon_counter["TOA"])/(n_tot * photon_counter["TOA"]))
+except ZeroDivisionError:
+    R_std = np.inf
+
 assert n_tot == n_photons
 
 print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
