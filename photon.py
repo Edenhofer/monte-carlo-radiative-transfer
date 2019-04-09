@@ -2,6 +2,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def rand_tau(n=1):
@@ -37,13 +38,22 @@ class photon(object):
 
 
 n_photons = int(1e+4)
+low_photons = 100
 z_TOA = 1.
 beta_ext = 1e+0
 
 photon_counter = {"TOA": 0, "surface": 0}
 
+if n_photons <= low_photons:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_zlim(-0.1, z_TOA+0.1)
+
 for i in range(n_photons):
     p = photon(0., 0., z_TOA, zenith_angle=np.pi / 6.)
+    if n_photons <= low_photons:
+        p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
+
     while p.pos[2] <= z_TOA and p.pos[2] >= 0:
         tau = rand_tau(n=1)[0]
         delta_s = tau / beta_ext
@@ -60,11 +70,17 @@ for i in range(n_photons):
         p.n = mu * p.n + np.sin(np.arccos(mu)) * np.cos(phi) * u + np.sin(np.arccos(mu)) * np.sin(phi) * v
         p.n /= np.linalg.norm(p.n)
 
-        if n_photons < 10:
+        if n_photons <= low_photons:
             print(p.pos, p.n)
+            p_paths[0] += [p.pos[0]]
+            p_paths[1] += [p.pos[1]]
+            p_paths[2] += [p.pos[2]]
 
-    if i % (n_photons/10) == 0:
+    if i % (n_photons/10) == 0 and n_photons > low_photons:
         print(i)
+
+    if n_photons <= low_photons:
+        ax.plot(p_paths[0], p_paths[1], p_paths[2])
 
     if p.pos[2] > z_TOA:
         photon_counter["TOA"] += 1
@@ -73,6 +89,14 @@ for i in range(n_photons):
     else:
         raise RuntimeError("photon did not pass through the atmosphere correctly!")
 
+if n_photons <= low_photons:
+    plt.show()
+
+n_tot = photon_counter["surface"] + photon_counter["TOA"]
 T = photon_counter["surface"] / (photon_counter["surface"] + photon_counter["TOA"])
+T_std = np.sqrt((n_tot - photon_counter["surface"])/(n_tot * photon_counter["surface"]))
 R = photon_counter["TOA"] / (photon_counter["surface"] + photon_counter["TOA"])
-print("T: {0:5.4f};\tR: {1:5.4f};\t{2}".format(T, R, photon_counter))
+R_std = np.sqrt((n_tot - photon_counter["TOA"])/(n_tot * photon_counter["TOA"]))
+assert n_tot == n_photons
+
+print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
