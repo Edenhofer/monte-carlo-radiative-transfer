@@ -1,0 +1,9 @@
+# Backup files
+*~
+*.bak
+
+# Disregard editor configurations
+.vscode/
+
+# Programming caches
+__pycache__/
