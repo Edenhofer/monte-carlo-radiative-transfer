@@ -29,18 +29,74 @@ def rand_mu_reyleigh(n=1):
 
 def get_sca(p):
     pos_box = tuple(np.floor((p.pos * box_size) % beta_atm.shape).astype(int))
+    # TODO: adapting the position to modulo box_size leads to wrong line-plots
 
     tau = rand_tau(n=1)[0]
     phi = rand_phi(n =1)[0]
     if pos_box in clouds.keys():
         mu = rand_mu(n=1)[0]
     else:
-        #mu = rand_mu_reyleigh(n=1)[0]
-        mu = rand_mu(n=1)[0]
+        mu = rand_mu_reyleigh(n=1)[0]
 
-    #print(pos_box, p.pos)
+    delta_s = 0
+    delta_tau = 0
+    while delta_tau < tau:
+        # Calculate intersecting boxes
+        hit = False
+        i = 0
+        while i < 2 and hit is False:
+            i += 1
 
-    delta_s = tau / beta_atm[pos_box]
+            b = np.array(pos_box)
+            if p.n[i] < 0:
+                b[i] -= 1
+                pl_0 = np.array(pos_box) * box_size/beta_atm.shape
+                a = np.zeros(3).astype(int)
+                a[(i+1)%3] = 1
+                pl_1 = (np.array(pos_box) + a) * box_size/beta_atm.shape
+                a = np.zeros(3).astype(int)
+                a[(i+2)%3] = 1
+                pl_2 = (np.array(pos_box) + a) * box_size/beta_atm.shape
+            else:
+                b[i] += 1
+                offset = np.zeros(3).astype(int)
+                offset[i] += 1
+                pl_0 = (np.array(pos_box) + offset) * box_size/beta_atm.shape
+                a = np.zeros(3).astype(int)
+                a[(i+1)%3] = 1
+                pl_1 = (np.array(pos_box) + offset + a) * box_size/beta_atm.shape
+                a = np.zeros(3).astype(int)
+                a[(i+2)%3] = 1
+                pl_2 = (np.array(pos_box) + offset + a) * box_size/beta_atm.shape
+
+            box = b % beta_atm.shape
+
+            # Calculate the intersection between the photon and a box
+            pl_01 = pl_1 - pl_0
+            pl_02 = pl_2 - pl_0
+            pos_int = p.pos + (p.n) * (np.cross(pl_01, pl_02).dot(p.pos-pl_0)) / (-(p.n).dot(np.cross(pl_01, pl_02)))
+
+            if pos_int[i] is np.nan and i == 2:
+                raise RuntimeError("no intersection found")
+            elif pos_int[i] is np.nan:
+                continue
+
+            for offset in [1, 2]:
+                left_bound = min(pl_0[(i+offset)%3], pl_1[(i+offset)%3], pl_2[(i+offset)%3])
+                right_bound = max(pl_0[(i+offset)%3], pl_1[(i+offset)%3], pl_2[(i+offset)%3])
+                if pos_int[(i+offset)%3] > left_bound and pos_int[(i+offset)%3] < right_bound:
+                    hit = True
+                    break
+
+        l = np.linalg.norm(pos_int - p.pos)
+        tau_box = l * beta_atm[tuple(pos_box)]
+        tau_step = min(tau - delta_tau, tau_box)
+        delta_tau += tau_step
+
+        #print("p.pos: {pos}; p.n: {dir}; int: {int}; tau: {tau:5.4f}; delta_tau: {delta_tau:5.4f}".format(pos=p.pos, dir=p.n, int=pos_int, tau=tau, delta_tau=delta_tau))
+
+        delta_s += tau_step / beta_atm[tuple(pos_box)]
+        pos_box = box
 
     return delta_s, mu, phi
 
@@ -67,7 +123,7 @@ low_photons = 100
 
 box_size = (1., 1., 1.)
 beta_atm = np.full((3, 3, 3), fill_value=1.)
-clouds = {(0, 0, 1): 1.}
+clouds = {(0, 0, 1): 10.}
 for el, key in clouds.items():
     beta_atm[el] = key
 
@@ -79,7 +135,7 @@ if n_photons <= low_photons:
     ax.set_zlim(-0.1, box_size[2]+0.1)
 
 for i in range(n_photons):
-    p = photon(0., 0., box_size[2], zenith_angle=0.)
+    p = photon(0.5, 0.5, box_size[2], zenith_angle=0.)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
@@ -112,7 +168,7 @@ for i in range(n_photons):
     elif p.pos[2] < 0:
         photon_counter["surface"] += 1
     else:
-        raise RuntimeError("photon did not pass through the atmosphere correctly!")
+        raise RuntimeError("photon did not pass through the atmosphere correctly")
 
 if n_photons <= low_photons:
     plt.show()
