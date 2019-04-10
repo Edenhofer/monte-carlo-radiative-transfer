@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import itertools
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -22,9 +23,9 @@ def rand_mu(n=1, g=0.85):
 def rand_mu_reyleigh(n=1):
     r = np.random.rand(n)
     q = -8 * r + 4
-    D = 1 + np.power(q, 2)/4
-    u = np.power(-q/2 + np.sqrt(D), 1/3)
-    return u - 1/u
+    D = 1 + np.power(q, 2) / 4
+    u = np.power(-q / 2 + np.sqrt(D), 1 / 3)
+    return u - 1 / u
 
 
 def get_sca(p):
@@ -32,7 +33,7 @@ def get_sca(p):
     # TODO: adapting the position to modulo atm_size leads to wrong line-plots
 
     tau = rand_tau(n=1)[0]
-    phi = rand_phi(n =1)[0]
+    phi = rand_phi(n=1)[0]
     if pos_box in clouds.keys():
         mu = rand_mu(n=1)[0]
     else:
@@ -50,31 +51,31 @@ def get_sca(p):
             b = np.array(pos_box)
             if p.n[i] < 0:
                 b[i] -= 1
-                pl_0 = np.array(pos_box) * atm_size/beta_atm.shape
+                pl_0 = np.array(pos_box) * atm_size / beta_atm.shape
                 a = np.zeros(3).astype(int)
-                a[(i+1)%3] = 1
-                pl_1 = (np.array(pos_box) + a) * atm_size/beta_atm.shape
+                a[(i + 1) % 3] = 1
+                pl_1 = (np.array(pos_box) + a) * atm_size / beta_atm.shape
                 a = np.zeros(3).astype(int)
-                a[(i+2)%3] = 1
-                pl_2 = (np.array(pos_box) + a) * atm_size/beta_atm.shape
+                a[(i + 2) % 3] = 1
+                pl_2 = (np.array(pos_box) + a) * atm_size / beta_atm.shape
             else:
                 b[i] += 1
                 offset = np.zeros(3).astype(int)
                 offset[i] += 1
-                pl_0 = (np.array(pos_box) + offset) * atm_size/beta_atm.shape
+                pl_0 = (np.array(pos_box) + offset) * atm_size / beta_atm.shape
                 a = np.zeros(3).astype(int)
-                a[(i+1)%3] = 1
-                pl_1 = (np.array(pos_box) + offset + a) * atm_size/beta_atm.shape
+                a[(i + 1) % 3] = 1
+                pl_1 = (np.array(pos_box) + offset + a) * atm_size / beta_atm.shape
                 a = np.zeros(3).astype(int)
-                a[(i+2)%3] = 1
-                pl_2 = (np.array(pos_box) + offset + a) * atm_size/beta_atm.shape
+                a[(i + 2) % 3] = 1
+                pl_2 = (np.array(pos_box) + offset + a) * atm_size / beta_atm.shape
 
             box = b % beta_atm.shape
 
             # Calculate the intersection between the photon and a box
             pl_01 = pl_1 - pl_0
             pl_02 = pl_2 - pl_0
-            pos_int = p.pos + (p.n) * (np.cross(pl_01, pl_02).dot(p.pos-pl_0)) / (-(p.n).dot(np.cross(pl_01, pl_02)))
+            pos_int = p.pos + (p.n) * (np.cross(pl_01, pl_02).dot(p.pos - pl_0)) / (-(p.n).dot(np.cross(pl_01, pl_02)))
 
             if pos_int[i] is np.nan and i == 2:
                 raise RuntimeError("no intersection found")
@@ -82,9 +83,9 @@ def get_sca(p):
                 continue
 
             for offset in [1, 2]:
-                left_bound = min(pl_0[(i+offset)%3], pl_1[(i+offset)%3], pl_2[(i+offset)%3])
-                right_bound = max(pl_0[(i+offset)%3], pl_1[(i+offset)%3], pl_2[(i+offset)%3])
-                if pos_int[(i+offset)%3] > left_bound and pos_int[(i+offset)%3] < right_bound:
+                left_bound = min(pl_0[(i + offset) % 3], pl_1[(i + offset) % 3], pl_2[(i + offset) % 3])
+                right_bound = max(pl_0[(i + offset) % 3], pl_1[(i + offset) % 3], pl_2[(i + offset) % 3])
+                if pos_int[(i + offset) % 3] > left_bound and pos_int[(i + offset) % 3] < right_bound:
                     hit = True
                     break
 
@@ -99,6 +100,7 @@ def get_sca(p):
         pos_box = box
 
     return delta_s, mu, phi
+
 
 class photon(object):
     def __init__(self, x=None, y=None, z=None, n_x=None, n_y=None, n_z=None, zenith_angle=None):
@@ -121,9 +123,10 @@ class photon(object):
 n_photons = int(1e+1)
 low_photons = 100
 
-atm_size = (1., 1., 1.)
-beta_atm = np.full((3, 3, 3), fill_value=1.)
-clouds = {(1, 1, 1): 10.}
+atm_size = (10., 10., 1.)
+beta_atm = np.full((3, 3, 3), fill_value=.5)
+beta_atm[:,:,0] = np.full((3, 3), fill_value=2.)
+clouds = {(x, y, 1): 10. for x, y in itertools.product(range(3), repeat=2)}
 for el, key in clouds.items():
     beta_atm[el] = key
 
@@ -132,7 +135,7 @@ photon_counter = {"TOA": 0, "surface": 0}
 if n_photons <= low_photons:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_zlim(-0.1, atm_size[2]+0.1)
+    ax.set_zlim(-0.1, atm_size[2] + 0.1)
 
 for i in range(n_photons):
     p = photon(0.5, 0.5, atm_size[2], zenith_angle=0.)
@@ -157,7 +160,7 @@ for i in range(n_photons):
             p_paths[1] += [p.pos[1]]
             p_paths[2] += [p.pos[2]]
 
-    if i % (n_photons/10) == 0 and n_photons > low_photons:
+    if i % (n_photons / 10) == 0 and n_photons > low_photons:
         print(i)
 
     if n_photons <= low_photons:
@@ -176,13 +179,13 @@ if n_photons <= low_photons:
 n_tot = photon_counter["surface"] + photon_counter["TOA"]
 T = photon_counter["surface"] / (photon_counter["surface"] + photon_counter["TOA"])
 try:
-    T_std = np.sqrt((n_tot - photon_counter["surface"])/(n_tot * photon_counter["surface"]))
+    T_std = np.sqrt((n_tot - photon_counter["surface"]) / (n_tot * photon_counter["surface"]))
 except ZeroDivisionError:
     T_std = np.inf
 
 R = photon_counter["TOA"] / (photon_counter["surface"] + photon_counter["TOA"])
 try:
-    R_std = np.sqrt((n_tot - photon_counter["TOA"])/(n_tot * photon_counter["TOA"]))
+    R_std = np.sqrt((n_tot - photon_counter["TOA"]) / (n_tot * photon_counter["TOA"]))
 except ZeroDivisionError:
     R_std = np.inf
 
