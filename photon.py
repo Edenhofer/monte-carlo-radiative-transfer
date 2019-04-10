@@ -28,8 +28,8 @@ def rand_mu_reyleigh(n=1):
 
 
 def get_sca(p):
-    pos_box = tuple(np.floor((p.pos * box_size) % beta_atm.shape).astype(int))
-    # TODO: adapting the position to modulo box_size leads to wrong line-plots
+    pos_box = tuple(np.floor((p.pos * beta_atm.shape) % beta_atm.shape).astype(int))
+    # TODO: adapting the position to modulo atm_size leads to wrong line-plots
 
     tau = rand_tau(n=1)[0]
     phi = rand_phi(n =1)[0]
@@ -50,24 +50,24 @@ def get_sca(p):
             b = np.array(pos_box)
             if p.n[i] < 0:
                 b[i] -= 1
-                pl_0 = np.array(pos_box) * box_size/beta_atm.shape
+                pl_0 = np.array(pos_box) * atm_size/beta_atm.shape
                 a = np.zeros(3).astype(int)
                 a[(i+1)%3] = 1
-                pl_1 = (np.array(pos_box) + a) * box_size/beta_atm.shape
+                pl_1 = (np.array(pos_box) + a) * atm_size/beta_atm.shape
                 a = np.zeros(3).astype(int)
                 a[(i+2)%3] = 1
-                pl_2 = (np.array(pos_box) + a) * box_size/beta_atm.shape
+                pl_2 = (np.array(pos_box) + a) * atm_size/beta_atm.shape
             else:
                 b[i] += 1
                 offset = np.zeros(3).astype(int)
                 offset[i] += 1
-                pl_0 = (np.array(pos_box) + offset) * box_size/beta_atm.shape
+                pl_0 = (np.array(pos_box) + offset) * atm_size/beta_atm.shape
                 a = np.zeros(3).astype(int)
                 a[(i+1)%3] = 1
-                pl_1 = (np.array(pos_box) + offset + a) * box_size/beta_atm.shape
+                pl_1 = (np.array(pos_box) + offset + a) * atm_size/beta_atm.shape
                 a = np.zeros(3).astype(int)
                 a[(i+2)%3] = 1
-                pl_2 = (np.array(pos_box) + offset + a) * box_size/beta_atm.shape
+                pl_2 = (np.array(pos_box) + offset + a) * atm_size/beta_atm.shape
 
             box = b % beta_atm.shape
 
@@ -88,7 +88,7 @@ def get_sca(p):
                     hit = True
                     break
 
-        l = np.linalg.norm(pos_int - p.pos)
+        l = np.linalg.norm(pos_int - (p.pos + p.n * delta_s))
         tau_box = l * beta_atm[tuple(pos_box)]
         tau_step = min(tau - delta_tau, tau_box)
         delta_tau += tau_step
@@ -118,12 +118,12 @@ class photon(object):
         self.n = np.array([n_x, n_y, n_z])
 
 
-n_photons = int(1e+4)
+n_photons = int(1e+1)
 low_photons = 100
 
-box_size = (1., 1., 1.)
+atm_size = (1., 1., 1.)
 beta_atm = np.full((3, 3, 3), fill_value=1.)
-clouds = {(0, 0, 1): 10.}
+clouds = {(1, 1, 1): 10.}
 for el, key in clouds.items():
     beta_atm[el] = key
 
@@ -132,14 +132,14 @@ photon_counter = {"TOA": 0, "surface": 0}
 if n_photons <= low_photons:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_zlim(-0.1, box_size[2]+0.1)
+    ax.set_zlim(-0.1, atm_size[2]+0.1)
 
 for i in range(n_photons):
-    p = photon(0.5, 0.5, box_size[2], zenith_angle=0.)
+    p = photon(0.5, 0.5, atm_size[2], zenith_angle=0.)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
-    while p.pos[2] <= box_size[2] and p.pos[2] >= 0:
+    while p.pos[2] <= atm_size[2] and p.pos[2] >= 0:
         # Propagate photon through a scattering atmopshere
         delta_s, mu, phi = get_sca(p)  # Incorporate clouds
         p.pos += p.n * delta_s
@@ -163,7 +163,7 @@ for i in range(n_photons):
     if n_photons <= low_photons:
         ax.plot(p_paths[0], p_paths[1], p_paths[2])
 
-    if p.pos[2] > box_size[2]:
+    if p.pos[2] > atm_size[2]:
         photon_counter["TOA"] += 1
     elif p.pos[2] < 0:
         photon_counter["surface"] += 1
