@@ -15,7 +15,7 @@ def rand_phi(n=1):
     return 2 * np.pi * np.random.rand(n)
 
 
-def rand_mu(n=1, g=0.85):
+def rand_mu_henyey(n=1, g=0.85):
     r = np.random.rand(np.int(n))
     return ((r * ((1 + g**2 - 2 * g)**(-1 / 2) - (1 + g**2 + 2 * g)**(-1 / 2)) + (1 + g**2 + 2 * g)**(-1 / 2))**-2 - 1 - g**2) / (-2 * g)
 
@@ -89,18 +89,22 @@ def get_box(pos):
 
 
 def get_sca(p):
+    delta_s, delta_tau = 0, 0
+    p_prop_pos = p.pos + p.n * delta_s
+    p_prop_box = get_box(p_prop_pos)
+
     tau = rand_tau(n=1)[0]
     phi = rand_phi(n=1)[0]
     # NOTE: adapting the position to modulo atm_size leads to wrong distances
-    if get_box(p.pos) in clouds.keys():
-        mu = rand_mu(n=1)[0]
+    if p_prop_box in clouds.keys():
+        r = np.random.rand()
+        if r <= beta_sca[p_prop_box] / (beta_sca[p_prop_box] + clouds[p_prop_box]):
+            mu = rand_mu_reyleigh(n=1)[0]
+        else:
+            mu = rand_mu_henyey(n=1)[0]
     else:
         mu = rand_mu_reyleigh(n=1)[0]
 
-    delta_s = 0
-    delta_tau = 0
-    p_prop_pos = p.pos + p.n * delta_s
-    p_prop_box = get_box(p_prop_pos)
     while delta_tau < tau and p_prop_pos[2] < atm_size[2] and p_prop_pos[2] > 0.:
         # Calculate intersecting boxes starting with the box below
         for i in range(2, -1, -1):
