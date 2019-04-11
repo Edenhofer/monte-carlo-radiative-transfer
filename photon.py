@@ -65,10 +65,10 @@ def get_sca(p):
 
     delta_s = 0
     delta_tau = 0
-    p_prop_pos = p.pos
-    while delta_tau < tau:
-        p_prop_pos = p.pos + p.n * delta_s
-        p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
+    p_prop_pos = p.pos + p.n * delta_s
+    p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
+    while delta_tau < tau and p_prop_pos[2] < atm_size[2] and p_prop_pos[2] > 0. and \
+        not np.isclose(p_prop_pos[2], 0.) and not np.isclose(p_prop_pos[2], atm_size[2]):
 
         # Calculate intersecting boxes starting with the box below
         for i in range(2, -1, -1):
@@ -112,10 +112,9 @@ def get_sca(p):
         p.w_ln -= beta_abs[tuple(p_prop_box)] * s_step
         delta_s += s_step
 
-        if p_prop_pos[2] >= atm_size[2] or p_prop_pos[2] <= 0.:
-            break
-        elif np.isclose(p_prop_pos[2], 0.) or np.isclose(p_prop_pos[2], atm_size[2]):
-            break
+        # Adapt propagation position for next iteration
+        p_prop_pos = p.pos + p.n * delta_s
+        p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
 
         #print("p.pos: {pos}; p.n: {dir}; int: {int}; l: {l}; tau: {tau:5.4f}; delta_tau: {delta_tau:5.4f}; beta_sca: {beta_sca}".format(pos=p.pos, dir=p.n, int=pos_int, l=l, tau=tau, delta_tau=delta_tau, beta_sca=beta_sca[tuple(p_prop_box)]))
 
@@ -146,7 +145,7 @@ class photon(object):
         return np.exp(self.w_ln)
 
 
-n_photons = int(1e+3)
+n_photons = int(1e+2)
 zenith_angle = 0.
 low_photons = 100
 
