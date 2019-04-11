@@ -188,16 +188,16 @@ abs_tol = 1e-5
 
 albedo = 0.2
 atm_tab = np.loadtxt("ksca_kabs/lambda320.dat")
+beta_sca = np.ones((3, 3, atm_tab.shape[0]))
+beta_abs = np.ones((3, 3, atm_tab.shape[0]))
+clouds = {(1, 1, int(atm_tab.shape[0] / 10.)): 10.}
+weight_density = np.zeros((20, 20))
+
 h = atm_tab[:, 0].max() - atm_tab[:, 0].min()
 atm_size = (2. * h, 2. * h, h)
 atm_height = atm_tab[:, 0][::-1]
-beta_sca = np.ones((3, 3, atm_tab.shape[0]))
 beta_sca *= atm_tab[:, 1][::-1]
-beta_abs = np.ones((3, 3, atm_tab.shape[0]))
 beta_abs *= atm_tab[:, 2][::-1]
-
-#clouds = {}
-clouds = {(1, 1, int(atm_tab.shape[0] / 2.)): 1.}
 for el, key in clouds.items():
     beta_sca[el] = key
 
@@ -211,7 +211,7 @@ if n_photons <= low_photons:
     ax.set_zlim(-0.1, atm_size[2] + 0.1)
 
 for i in range(n_photons):
-    p = photon(atm_size[0] / 2., atm_size[1] / 2., atm_size[2] - abs_tol, zenith_angle=zenith_angle)
+    p = photon(atm_size[0] * np.random.rand(), atm_size[1] * np.random.rand(), atm_size[2] - abs_tol, zenith_angle=zenith_angle)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
@@ -258,10 +258,14 @@ for i in range(n_photons):
     elif p.pos[2] <= 0:
         photon_counter["surface"] += 1
         photon_counter["surface_weight"] += p.weight()
+
+        idx = tuple(np.floor(((p.pos % atm_size) / atm_size)[:2] * weight_density.shape).astype(int))
+        weight_density[idx] += p.weight()
     else:
         raise RuntimeError("photon did not pass through the atmosphere correctly")
 
 n_tot = photon_counter["surface"] + photon_counter["TOA"]
+weight_tot = photon_counter["surface_weight"] + photon_counter["TOA_weight"]
 assert n_tot == n_photons
 
 T = photon_counter["surface_weight"] / n_tot
@@ -278,6 +282,10 @@ except ZeroDivisionError:
 
 print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
 
+density_fig, density_ax = plt.subplots()
+im = density_ax.imshow(weight_density / weight_tot, cmap=plt.cm.get_cmap("Blues"))
+density_fig.colorbar(im, ax=density_ax)
+
 if n_photons <= low_photons:
     for box in clouds.keys():
         Z = []
@@ -289,4 +297,4 @@ if n_photons <= low_photons:
 
         ax.add_collection3d(Poly3DCollection(verts, facecolors='cyan', edgecolors='b', linewidth=0.2, alpha=0.25))
 
-    plt.show()
+plt.show()
