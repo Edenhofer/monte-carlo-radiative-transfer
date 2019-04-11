@@ -54,7 +54,7 @@ def get_planes(pos_box, ni_dir, direction):
 
 def get_sca(p):
     pos_box = tuple(np.floor((p.pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
-    # TODO: adapting the position to modulo atm_size leads to wrong distances
+    # NOTE: adapting the position to modulo atm_size leads to wrong distances
 
     tau = rand_tau(n=1)[0]
     phi = rand_phi(n=1)[0]
@@ -70,8 +70,8 @@ def get_sca(p):
         p_prop_pos = p.pos + p.n * delta_s
         p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
 
-        # Calculate intersecting boxes
-        for i in range(3):
+        # Calculate intersecting boxes starting with the box below
+        for i in range(2, -1, -1):
             pl_0, pl_1, pl_2 = get_planes(p_prop_box, p.n[i], i)
 
             # Calculate the intersection between the photon and the current box
@@ -95,7 +95,7 @@ def get_sca(p):
                 and pos_int_mod[(i + 2) % 3] >= left_bound_second_orthogonal and pos_int_mod[(i + 2) % 3] <= right_bound_second_orthogonal:
 
                 break
-            elif i == 2:
+            elif i == 0:
                 raise RuntimeError("no intersecting box found")
 
         # Move a little bit further as to always cross into the next box
