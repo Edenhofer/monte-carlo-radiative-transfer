@@ -52,6 +52,10 @@ def get_planes(pos_box, ni_dir, direction):
     return pl_0, pl_1, pl_2
 
 
+def get_box(pos):
+    return tuple(np.floor((pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
+
+
 def get_sca(p):
     pos_box = tuple(np.floor((p.pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
     # NOTE: adapting the position to modulo atm_size leads to wrong distances
@@ -66,10 +70,8 @@ def get_sca(p):
     delta_s = 0
     delta_tau = 0
     p_prop_pos = p.pos + p.n * delta_s
-    p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
-    while delta_tau < tau and p_prop_pos[2] < atm_size[2] and p_prop_pos[2] > 0. and \
-        not np.isclose(p_prop_pos[2], 0.) and not np.isclose(p_prop_pos[2], atm_size[2]):
-
+    p_prop_box = get_box(p_prop_pos)
+    while delta_tau < tau and p_prop_pos[2] < atm_size[2] and p_prop_pos[2] > 0.:
         # Calculate intersecting boxes starting with the box below
         for i in range(2, -1, -1):
             pl_0, pl_1, pl_2 = get_planes(p_prop_box, p.n[i], i)
@@ -99,7 +101,7 @@ def get_sca(p):
                 raise RuntimeError("no intersecting box found")
 
         # Move a little bit further as to always cross into the next box
-        l = np.linalg.norm(pos_int - (p_prop_pos % atm_size)) + 1e-10
+        l = np.linalg.norm(pos_int - (p_prop_pos % atm_size)) + 1e-7
         tau_box = l * beta_sca[tuple(p_prop_box)]
         tau_step = min(tau - delta_tau, tau_box)
         delta_tau += tau_step
@@ -111,10 +113,9 @@ def get_sca(p):
 
         p.w_ln -= beta_abs[tuple(p_prop_box)] * s_step
         delta_s += s_step
-
         # Adapt propagation position for next iteration
         p_prop_pos = p.pos + p.n * delta_s
-        p_prop_box = tuple(np.floor((p_prop_pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
+        p_prop_box = get_box(p_prop_pos)
 
         #print("p.pos: {pos}; p.n: {dir}; int: {int}; l: {l}; tau: {tau:5.4f}; delta_tau: {delta_tau:5.4f}; beta_sca: {beta_sca}".format(pos=p.pos, dir=p.n, int=pos_int, l=l, tau=tau, delta_tau=delta_tau, beta_sca=beta_sca[tuple(p_prop_box)]))
 
@@ -172,7 +173,7 @@ if n_photons <= low_photons:
     ax.set_zlim(-0.1, atm_size[2] + 0.1)
 
 for i in range(n_photons):
-    p = photon(atm_size[0] / 2., atm_size[1] / 2., atm_size[2] * .99, zenith_angle=zenith_angle)
+    p = photon(atm_size[0] / 2., atm_size[1] / 2., atm_size[2] - 1e-5, zenith_angle=zenith_angle)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
