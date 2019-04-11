@@ -49,20 +49,45 @@ def get_planes(pos_box, ni_dir, direction):
         a[(direction + 2) % 3] = 1
         pl_2 = (b + offset + a) * atm_size / beta_sca.shape
 
+    if direction == 0:
+        pl_0[2] = atm_height[b[2]]
+        pl_1[2] = atm_height[b[2]]
+        pl_2[2] = atm_height[b[2]+1]
+    elif direction == 1:
+        pl_0[2] = atm_height[b[2]]
+        pl_1[2] = atm_height[b[2]+1]
+        pl_2[2] = atm_height[b[2]]
+    elif direction == 2:
+        if ni_dir < 0:
+            pl_0[2] = atm_height[b[2]]
+            pl_1[2] = atm_height[b[2]]
+            pl_2[2] = atm_height[b[2]]
+        else:
+            if b[2]+1 == atm_height.shape[0]:
+                raise RuntimeError("there can not be a plane for this box")
+
+            pl_0[2] = atm_height[b[2]+1]
+            pl_1[2] = atm_height[b[2]+1]
+            pl_2[2] = atm_height[b[2]+1]
+
     return pl_0, pl_1, pl_2
 
 
 def get_box(pos):
-    return tuple(np.floor((pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
+    idx = np.where(atm_height < pos[2])[0]
+    if idx.shape == (0,):
+        return (None, None, None)
+
+    box = np.floor((pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int)
+    box[2] = idx.max()
+    return tuple(box)
 
 
 def get_sca(p):
-    pos_box = tuple(np.floor((p.pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int))
-    # NOTE: adapting the position to modulo atm_size leads to wrong distances
-
     tau = rand_tau(n=1)[0]
     phi = rand_phi(n=1)[0]
-    if pos_box in clouds.keys():
+    # NOTE: adapting the position to modulo atm_size leads to wrong distances
+    if get_box(p.pos) in clouds.keys():
         mu = rand_mu(n=1)[0]
     else:
         mu = rand_mu_reyleigh(n=1)[0]
@@ -151,8 +176,9 @@ zenith_angle = 0.
 low_photons = 100
 
 atm_tab = np.loadtxt("ksca_kabs/lambda320.dat")
-atm_height = atm_tab[:, 0].max() - atm_tab[:, 0].min()
-atm_size = (2. * atm_height, 2. * atm_height, atm_height)
+h = atm_tab[:, 0].max() - atm_tab[:, 0].min()
+atm_size = (2. * h, 2. * h, h)
+atm_height = atm_tab[:, 0][::-1]
 beta_sca = np.ones((3, 3, atm_tab.shape[0]))
 beta_sca *= atm_tab[:, 1][::-1]
 beta_abs = np.ones((3, 3, atm_tab.shape[0]))
