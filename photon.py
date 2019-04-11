@@ -28,6 +28,11 @@ def rand_mu_reyleigh(n=1):
     return u - 1 / u
 
 
+def rand_reflection(n=1):
+    r = np.random.rand(n)
+    return np.sqrt(r)
+
+
 def get_planes(pos_box, ni_dir, direction):
     b = np.array(pos_box)
     if ni_dir < 0:
@@ -52,10 +57,10 @@ def get_planes(pos_box, ni_dir, direction):
     if direction == 0:
         pl_0[2] = atm_height[b[2]]
         pl_1[2] = atm_height[b[2]]
-        pl_2[2] = atm_height[b[2]+1]
+        pl_2[2] = atm_height[b[2] + 1]
     elif direction == 1:
         pl_0[2] = atm_height[b[2]]
-        pl_1[2] = atm_height[b[2]+1]
+        pl_1[2] = atm_height[b[2] + 1]
         pl_2[2] = atm_height[b[2]]
     elif direction == 2:
         if ni_dir < 0:
@@ -63,19 +68,19 @@ def get_planes(pos_box, ni_dir, direction):
             pl_1[2] = atm_height[b[2]]
             pl_2[2] = atm_height[b[2]]
         else:
-            if b[2]+1 == atm_height.shape[0]:
+            if b[2] + 1 == atm_height.shape[0]:
                 raise RuntimeError("there can not be a plane for this box")
 
-            pl_0[2] = atm_height[b[2]+1]
-            pl_1[2] = atm_height[b[2]+1]
-            pl_2[2] = atm_height[b[2]+1]
+            pl_0[2] = atm_height[b[2] + 1]
+            pl_1[2] = atm_height[b[2] + 1]
+            pl_2[2] = atm_height[b[2] + 1]
 
     return pl_0, pl_1, pl_2
 
 
 def get_box(pos):
     idx = np.where(atm_height < pos[2])[0]
-    if idx.shape == (0,):
+    if idx.shape == (0, ):
         return (None, None, None)
 
     box = np.floor((pos * beta_sca.shape / atm_size) % beta_sca.shape).astype(int)
@@ -174,7 +179,9 @@ class photon(object):
 n_photons = int(1e+2)
 zenith_angle = 0.
 low_photons = 100
+abs_tol = 1e-5
 
+albedo = 0.2
 atm_tab = np.loadtxt("ksca_kabs/lambda320.dat")
 h = atm_tab[:, 0].max() - atm_tab[:, 0].min()
 atm_size = (2. * h, 2. * h, h)
@@ -199,11 +206,11 @@ if n_photons <= low_photons:
     ax.set_zlim(-0.1, atm_size[2] + 0.1)
 
 for i in range(n_photons):
-    p = photon(atm_size[0] / 2., atm_size[1] / 2., atm_size[2] - 1e-5, zenith_angle=zenith_angle)
+    p = photon(atm_size[0] / 2., atm_size[1] / 2., atm_size[2] - abs_tol, zenith_angle=zenith_angle)
     if n_photons <= low_photons:
         p_paths = [[p.pos[0]], [p.pos[1]], [p.pos[2]]]
 
-    while p.pos[2] < atm_size[2] and p.pos[2] > 0:
+    while True:
         # Propagate photon through a scattering atmopshere
         delta_s, mu, phi = get_sca(p)  # Incorporate clouds
         p.pos += p.n * delta_s
@@ -219,6 +226,20 @@ for i in range(n_photons):
             p_paths[0] += [p.pos[0]]
             p_paths[1] += [p.pos[1]]
             p_paths[2] += [p.pos[2]]
+
+        if p.pos[2] >= atm_size[2]:
+            break
+        elif p.pos[2] <= 0.:
+            r = np.random.rand()
+            if r > albedo:
+                break
+            else:
+                mu = rand_reflection(n=1)[0]
+                # Set orientation after scattering at the surface
+                p.n = mu * np.array([0., 0., 1.]) + np.sin(np.arccos(mu)) * np.cos(phi) * np.array([1., 0., 0.]) + np.sin(np.arccos(mu)) * np.sin(phi) * np.array([0., 1., 0.])
+                p.n /= np.linalg.norm(p.n)
+                p.pos[2] = abs_tol
+                print(p.n)
 
     if i % (n_photons / 10) == 0 and n_photons > low_photons:
         print(i)
