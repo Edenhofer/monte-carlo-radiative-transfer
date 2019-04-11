@@ -4,6 +4,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 def rand_tau(n=1):
@@ -180,7 +181,7 @@ class photon(object):
         return np.exp(self.w_ln)
 
 
-n_photons = int(1e+2)
+n_photons = int(1e+1)
 zenith_angle = 0.
 low_photons = 100
 abs_tol = 1e-5
@@ -195,8 +196,8 @@ beta_sca *= atm_tab[:, 1][::-1]
 beta_abs = np.ones((3, 3, atm_tab.shape[0]))
 beta_abs *= atm_tab[:, 2][::-1]
 
-clouds = {}
-#clouds = {(1, 1, int(atm_tab.shape[0] / 2.)): 10.}
+#clouds = {}
+clouds = {(1, 1, int(atm_tab.shape[0] / 2.)): 1.}
 for el, key in clouds.items():
     beta_sca[el] = key
 
@@ -243,7 +244,6 @@ for i in range(n_photons):
                 p.n = mu * np.array([0., 0., 1.]) + np.sin(np.arccos(mu)) * np.cos(phi) * np.array([1., 0., 0.]) + np.sin(np.arccos(mu)) * np.sin(phi) * np.array([0., 1., 0.])
                 p.n /= np.linalg.norm(p.n)
                 p.pos[2] = abs_tol
-                print(p.n)
 
     if i % (n_photons / 10) == 0 and n_photons > low_photons:
         print(i)
@@ -279,4 +279,14 @@ except ZeroDivisionError:
 print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
 
 if n_photons <= low_photons:
+    for box in clouds.keys():
+        Z = []
+        Z += get_planes(box, -1, 2)
+        Z += [Z[1] + Z[2] - Z[0]]
+        Z += get_planes(box, +1, 2)
+        Z += [Z[5] + Z[6] - Z[4]]
+        verts = [[Z[0], Z[1], Z[3], Z[2]], [Z[4], Z[5], Z[7], Z[6]], [Z[0], Z[1], Z[5], Z[4]], [Z[3], Z[2], Z[6], Z[7]], [Z[1], Z[3], Z[7], Z[5]], [Z[4], Z[6], Z[2], Z[0]]]
+
+        ax.add_collection3d(Poly3DCollection(verts, facecolors='cyan', edgecolors='b', linewidth=0.2, alpha=0.25))
+
     plt.show()
