@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import scipy.constants
-import numpy as np
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
@@ -191,7 +191,7 @@ p_lambda = 320
 atm_tab = np.loadtxt("ksca_kabs/lambda" + str(p_lambda) + ".dat")
 beta_sca = np.ones((7, 7, atm_tab.shape[0]))
 beta_abs = np.ones((7, 7, atm_tab.shape[0]))
-clouds = {(2, 4, int(atm_tab.shape[0] / 5.)): 10., (4, 4, int(atm_tab.shape[0] / 5.)): 10., (1, 2, int(atm_tab.shape[0] / 10.)): 5., (2, 1, int(atm_tab.shape[0] / 10.)): 5., (3, 1, int(atm_tab.shape[0] / 10.)): 5., (4, 1, int(atm_tab.shape[0] / 10.)): 5., (5, 2, int(atm_tab.shape[0] / 10.)): 5.}
+clouds = {(2, 4, int(atm_tab.shape[0] / 5.)): 5., (4, 4, int(atm_tab.shape[0] / 5.)): 5., (1, 2, int(atm_tab.shape[0] / 10.)): 10., (2, 1, int(atm_tab.shape[0] / 10.)): 10., (3, 1, int(atm_tab.shape[0] / 10.)): 10., (4, 1, int(atm_tab.shape[0] / 10.)): 10., (5, 2, int(atm_tab.shape[0] / 10.)): 10.}
 weight_density = np.zeros((20, 20))
 
 h = atm_tab[:, 0].max() - atm_tab[:, 0].min()
@@ -209,7 +209,7 @@ if n_photons <= low_photons:
     ax = fig.add_subplot(111, projection='3d')
     ax.set_xlim(-0.1, atm_size[0] + 0.1)
     ax.set_ylim(-0.1, atm_size[1] + 0.1)
-    ax.set_zlim(-0.1, atm_size[2] + 0.1)
+    ax.set_zlim(-0.1, (atm_size[2] / 5.) + 0.1)
 
 for i in range(n_photons):
     p = photon(atm_size[0] * np.random.rand(), atm_size[1] * np.random.rand(), atm_size[2] - abs_tol, zenith_angle=zenith_angle)
@@ -305,6 +305,15 @@ if n_photons <= low_photons:
         Z += [Z[5] + Z[6] - Z[4]]
         verts = [[Z[0], Z[1], Z[3], Z[2]], [Z[4], Z[5], Z[7], Z[6]], [Z[0], Z[1], Z[5], Z[4]], [Z[3], Z[2], Z[6], Z[7]], [Z[1], Z[3], Z[7], Z[5]], [Z[4], Z[6], Z[2], Z[0]]]
 
-        ax.add_collection3d(Poly3DCollection(verts, facecolors='cyan', edgecolors='b', linewidth=0.2, alpha=0.25))
+        poly = Poly3DCollection(verts, edgecolors='b', linewidth=0.2, alpha=0.25)
+        poly.set_alpha(0.2)
+        poly.set_facecolor([0.5, 0.5, 1.])
+        ax.add_collection3d(poly)
 
-plt.show()
+    rot_animation = animation.FuncAnimation(fig, lambda angle: ax.view_init(azim=angle), frames=np.arange(0, 362, 2), interval=100)
+    plt.show()
+
+    print("saving animation...")
+    rot_animation.save('photon_paths.gif', dpi=120, writer='imagemagick')
+else:
+    plt.show()
