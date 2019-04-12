@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
+import scipy.constants
 import numpy as np
-import itertools
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -181,16 +181,17 @@ class photon(object):
         return np.exp(self.w_ln)
 
 
-n_photons = int(1e+1)
-zenith_angle = 0.
+n_photons = int(1e+4)
+zenith_angle = np.pi / 12.
 low_photons = 100
 abs_tol = 1e-5
 
 albedo = 0.2
-atm_tab = np.loadtxt("ksca_kabs/lambda320.dat")
-beta_sca = np.ones((3, 3, atm_tab.shape[0]))
-beta_abs = np.ones((3, 3, atm_tab.shape[0]))
-clouds = {(1, 1, int(atm_tab.shape[0] / 10.)): 10.}
+p_lambda = 320
+atm_tab = np.loadtxt("ksca_kabs/lambda" + str(p_lambda) + ".dat")
+beta_sca = np.ones((7, 7, atm_tab.shape[0]))
+beta_abs = np.ones((7, 7, atm_tab.shape[0]))
+clouds = {(2, 4, int(atm_tab.shape[0] / 5.)): 10., (4, 4, int(atm_tab.shape[0] / 5.)): 10., (1, 2, int(atm_tab.shape[0] / 10.)): 5., (2, 1, int(atm_tab.shape[0] / 10.)): 5., (3, 1, int(atm_tab.shape[0] / 10.)): 5., (4, 1, int(atm_tab.shape[0] / 10.)): 5., (5, 2, int(atm_tab.shape[0] / 10.)): 5.}
 weight_density = np.zeros((20, 20))
 
 h = atm_tab[:, 0].max() - atm_tab[:, 0].min()
@@ -283,8 +284,17 @@ except ZeroDivisionError:
 print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
 
 density_fig, density_ax = plt.subplots()
-im = density_ax.imshow(weight_density / weight_tot, cmap=plt.cm.get_cmap("Blues"))
+nom = weight_density.transpose() / n_tot
+den = atm_size[0] * atm_size[1] * 10e+6
+im = density_ax.imshow(nom / den, cmap=plt.cm.get_cmap("Blues"))
 density_fig.colorbar(im, ax=density_ax)
+density_ax.invert_yaxis()
+plt.xticks(range(weight_density.shape[0])[::3], np.round(np.linspace(0., atm_size[0], weight_density.shape[0])[::3]))
+plt.yticks(range(weight_density.shape[1])[::3], np.round(np.linspace(0., atm_size[1], weight_density.shape[1])[::3]))
+plt.xlabel("x-position [km]")
+plt.ylabel("y-position [km]")
+plt.title(r"Relative Irradiance at the Surface $\left[\frac{1}{\mathrm{m}^2}\right]$")
+plt.savefig("weight_density.pdf", bbox_inches='tight')
 
 if n_photons <= low_photons:
     for box in clouds.keys():
