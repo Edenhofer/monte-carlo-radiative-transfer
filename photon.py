@@ -181,6 +181,7 @@ class photon(object):
         return np.exp(self.w_ln)
 
 
+np.random.seed(31415)
 n_photons = int(1e+4)
 zenith_angle = np.pi / 12.
 low_photons = 100
