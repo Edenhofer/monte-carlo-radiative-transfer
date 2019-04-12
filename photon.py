@@ -285,9 +285,7 @@ except ZeroDivisionError:
 print("T: {0:5.4f} ({1:5.4f});\tR: {2:5.4f} ({3:5.4f});\t{4}".format(T, T_std, R, R_std, photon_counter))
 
 density_fig, density_ax = plt.subplots()
-nom = weight_density.transpose() / n_tot
-den = atm_size[0] * atm_size[1] * 10e+6
-im = density_ax.imshow(nom / den, cmap=plt.cm.get_cmap("Blues"))
+im = density_ax.imshow(weight_density.transpose() / n_tot, cmap=plt.cm.get_cmap("Blues"))
 density_fig.colorbar(im, ax=density_ax)
 density_ax.invert_yaxis()
 plt.xticks(range(weight_density.shape[0])[::3], np.round(np.linspace(0., atm_size[0], weight_density.shape[0])[::3]))
